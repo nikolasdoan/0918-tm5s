@@ -53,7 +53,11 @@ def move_home(self, input: str):
 
 class URAgent(ROSA):
     def __init__(self, streaming: bool = True, verbose: bool = True):
-        self.__blacklist = []
+        self.__blacklist = [
+            "activate_controller_request",
+            "cartesian_motion_request",
+            "get_current_pose",
+        ]
         self.__prompts = get_prompts()
         self.__llm = get_llm(streaming=streaming)
 
@@ -78,10 +82,10 @@ class URAgent(ROSA):
         print("Tools registered:")
 
         self.examples = [
-            "Give me a ROS tutorial using the ur robot.",
-            "Show me how to move the ur.",
-            "Draw a 5-point star using the ur tcp.",
-            "Give me a list of nodes, topics, services, params, and log files.",
+            "Move joint 4 to 1.57 radians using tmr_arm_controller.",
+            "Read current joint states.",
+            "Explain how to send a JointTrajectory to TM.",
+            "List nodes, topics, services, and params.",
         ]
 
         self.command_handler = {
@@ -94,7 +98,7 @@ class URAgent(ROSA):
     @property
     def greeting(self):
         greeting = Text(
-            "\nHi! I'm the ROSA-UR5e agent 🤖. How can I help you today?\n"
+            "\nHi! I'm the ROSA-TM agent 🤖. How can I help you today?\n"
         )
         greeting.stylize("frame bold blue")
         greeting.append(

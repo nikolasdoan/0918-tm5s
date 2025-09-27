@@ -22,7 +22,6 @@ from typing import List
 from sensor_msgs.msg import JointState
 import threading
 import time 
-from custom_msgs.srv import MoveToPose, CustomSwitchController
 from geometry_msgs.msg import Pose, PoseStamped
 
 _shared_node = None
@@ -41,11 +40,8 @@ def initialize_node():
         print("Initializing ROS node and starting spin thread...")
         rclpy.init()
         _shared_node = rclpy.create_node('ur_agent_node')
-        joint_traj_publisher = _shared_node.create_publisher(JointTrajectory, '/scaled_joint_trajectory_controller/joint_trajectory', 10)
+        joint_traj_publisher = _shared_node.create_publisher(JointTrajectory, '/tmr_arm_controller/joint_trajectory', 10)
         _shared_node.create_subscription(JointState, '/joint_states', joint_state_callback, 10)
-        cartesian_motion_client = _shared_node.create_client(MoveToPose, "move_to_pose")
-        controller_switcher_client = _shared_node.create_client(CustomSwitchController, "controller_switcher")
-        _shared_node.create_subscription(PoseStamped, '/cartesian_motion_controller/current_pose', pose_callback, 10)
 
         def spin_node():
             try:
@@ -61,7 +57,7 @@ def initialize_node():
 
 def joint_state_callback(msg):
     global current_joint_states,joint_states_received
-    current_joint_states = [msg.position[-1]] + list(msg.position[:-1])
+    current_joint_states = list(msg.position)
     joint_states_received = True
 
 def pose_callback(msg):
@@ -71,8 +67,8 @@ def pose_callback(msg):
 @tool
 def publish_joint_positions(joint_positions: List[float], duration_sec: int = 5) -> str:
     """
-        Publishes a `JointTrajectory` message to command the UR5e robot to move its joints to specified positions.
-        Crictical: activate scaled_joint_trajectory_controller before running.
+        Publishes a `JointTrajectory` to command the TM robot joints to specified positions.
+        Critical: ensure tmr_arm_controller is active.
         
         :param joint_positions: List of up to six joint positions in radians.
         :param duration_sec: Motion duration in seconds (default: 5).
@@ -86,7 +82,7 @@ def publish_joint_positions(joint_positions: List[float], duration_sec: int = 5)
 
     try:
         
-        print("scaled_joint_trajectory_controller is active.")
+        print("tmr_arm_controller is active.")
 
         # Timeout for waiting for joint states
         timeout = 10  # seconds
@@ -115,12 +111,12 @@ def publish_joint_positions(joint_positions: List[float], duration_sec: int = 5)
         trajectory_msg = JointTrajectory()
         trajectory_msg.header.stamp = _shared_node.get_clock().now().to_msg()
         trajectory_msg.joint_names = [
-            "shoulder_pan_joint",
-            "shoulder_lift_joint",
-            "elbow_joint",
-            "wrist_1_joint",
-            "wrist_2_joint",
-            "wrist_3_joint",
+            "joint_1",
+            "joint_2",
+            "joint_3",
+            "joint_4",
+            "joint_5",
+            "joint_6",
         ]
 
         # Create a trajectory point
@@ -143,7 +139,7 @@ def publish_joint_positions(joint_positions: List[float], duration_sec: int = 5)
 @tool
 def retrieve_joint_states() -> str:
     """
-        Retrieves the current joint states of the UR5e robot.
+        Retrieves the current joint states of the TM robot.
 
         :return: Joint states as a formatted string or an error message.
     """
@@ -178,134 +174,31 @@ def retrieve_joint_states() -> str:
 @tool
 def activate_controller_request(controller_name: str) -> str:
     """
-        Activates the specified controller.
+        Not supported for TM robots via this agent.
 
-        :param controller_name: The name of the controller to activate ("cartesian_motion_controller" or "scaled_joint_trajectory_controller")
-        :return: Service response or error message.
+        :param controller_name: Ignored.
+        :return: Informational message.
     """
-    global controller_switcher_client
-    initialize_node()
-    valid_controllers = [
-        "cartesian_motion_controller",
-        "scaled_joint_trajectory_controller",
-    ]
-    try:
-        if controller_name not in valid_controllers:
-            return f"Error: Controller {controller_name} is not valid. Valid controllers are: {valid_controllers}"
-
-        if not controller_switcher_client.wait_for_service(timeout_sec=5.0):
-            return "Error: Service switch_controller not available."
-
-        request = CustomSwitchController.Request()
-        request.controller_name = controller_name
-        future = controller_switcher_client.call_async(request)
-
-        # Wait for the response with a timeout
-        timeout = 10  # seconds
-        start_time = time.time()
-
-        while not future.done():
-            rclpy.spin_once(_shared_node, timeout_sec=0.1)
-            if time.time() - start_time > timeout:
-                return f"Error: Timed out waiting for the ControllerSwitcher service response for {controller_name}."
-
-        response = future.result()
-        if response.success:
-            return f"Controller {controller_name} activated successfully. Message: {response.message}"
-        else:
-            return f"Error: {response.message}"
-    
-    except Exception as e:
-        error_msg = f"Error switching controller: {e}"
-        print(error_msg)
-        return error_msg
+    return "Not supported: TM uses controller_manager with tmr_arm_controller; dynamic switching not provided here."
     
 
 @tool
 def cartesian_motion_request(x: float, y: float, z: float) -> str:
     """
-        Moves the robot TCP to the mentioned cartesian position,
-        Crictical: activate cartesian_motion_controller before running.
+        Not supported for TM robots via this agent (no TM cartesian controller wired).
 
-        :param x: Target x-coordinate (meters).
-        :param y: Target y-coordinate (meters).
-        :param z: Target z-coordinate (meters).
-        :return: Service response or error message.
+        :param x: Ignored.
+        :param y: Ignored.
+        :param z: Ignored.
+        :return: Informational message.
     """
-    global cartesian_motion_client
-    initialize_node()
-    pose = Pose()
-    pose.position.x = x
-    pose.position.y = y
-    pose.position.z = z
-    pose.orientation.x = 1.0
-    pose.orientation.y = 0.0
-    pose.orientation.z = 0.0
-    pose.orientation.w = 0.0
-
-    try:
-        print("cartesian_motion_controller is active.")
-
-        if not cartesian_motion_client.wait_for_service(timeout_sec=5.0):
-            return "Error: Service move_to_pose not available."
-        request = MoveToPose.Request()
-        request.target_pose = pose
-        future = cartesian_motion_client.call_async(request)
-
-        # Wait for the response with a timeout
-        timeout = 10  # seconds
-        start_time = time.time()
-
-        while not future.done():
-            rclpy.spin_once(_shared_node, timeout_sec=0.1)
-            if time.time() - start_time > timeout:
-                return "Error: Timed out waiting for the MoveToPose service response."
-
-        response = future.result()
-        return f"Response: {response.message}"
-    
-    except Exception as e:
-        error_msg = f"Error moving the robot: {e}"
-        print(error_msg)
-        return error_msg
+    return "Not supported: TM cartesian motion is not configured in this agent."
     
 @tool
 def get_current_pose() -> str:
     """
-        Retrieves the current end effector pose of the robot in Cartesian coordinates.
-        Crictical: activate cartesian_motion_controller before running.
+        Not supported for TM robots via this agent (no TM cartesian controller wired).
 
-        :return: Current pose as a formatted string or an error message.
+        :return: Informational message.
     """
-    global _shared_node, current_ef_pose
-    initialize_node()
-    print("Waiting for current pose to be available...")
-    try:
-        print("cartesian_motion_controller is active.")
-
-        start_time = time.time()
-        timeout = 10  # seconds
-
-        while current_ef_pose is None:
-            elapsed_time = time.time() - start_time
-            if elapsed_time > timeout:
-                print("Error: Timed out waiting for the current pose to become available.")
-                return "Error: Timed out waiting for the current pose to become available."
-            rclpy.spin_once(_shared_node, timeout_sec=0.1)
-        # Format the current pose as a string for return
-        pose_str = (
-            f"Position: ({current_ef_pose.pose.position.x:.4f}, "
-            f"{current_ef_pose.pose.position.y:.4f}, "
-            f"{current_ef_pose.pose.position.z:.4f}), "
-            f"Orientation: ({current_ef_pose.pose.orientation.x:.4f}, "
-            f"{current_ef_pose.pose.orientation.y:.4f}, "
-            f"{current_ef_pose.pose.orientation.z:.4f}, "
-            f"{current_ef_pose.pose.orientation.w:.4f})"
-        )
-        print(f"Current pose: {pose_str}")
-        return f"Current pose: {pose_str}"
-
-    except Exception as e:
-        error_msg = f"Error retrieving joint states: {e}"
-        print(error_msg)
-        return error_msg
+    return "Not supported: TM cartesian pose topic is not configured in this agent."

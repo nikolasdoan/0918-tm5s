@@ -1,7 +1,7 @@
-# llm-ur-control
+# llm-tm-control
 
 A ROS2 package integrating large language models (LLMs) to control Universal Robots, leveraging the ROSA framework for natural langauge based robotic manipulation. Use natural language such as _move tcp up by 20cm_ to control the robot.
-## llm-ur-control Demo
+## llm-tm-control Demo
 [![Demo Video](https://img.youtube.com/vi/Ooi772csa10/0.jpg)](https://youtu.be/Ooi772csa10)
 ## Features
 
@@ -40,7 +40,7 @@ Before using this package, ensure the following packages are installed and confi
 To ensure proper functionality, test the package using the Docker container provided in its repository. This step is crucial for verifying that all necessary configurations for integrating the LLM with ROS (such as adding the API key) have been completed.
 
 3. **[Cartesian Controller](https://github.com/fzi-forschungszentrum-informatik/cartesian_controllers)**  
-   Provides Cartesian control for use in ROS2. The package has to be installed in the same workspace as the llm-ur-control. llm-ur-control utilizes the _cartesian_motion_controller_ from this package to enable TCP motion in cartesian space.
+   Provides Cartesian control for use in ROS2. The package has to be installed in the same workspace as the llm-tm-control. llm-tm-control utilizes the _cartesian_motion_controller_ from this package to enable TCP motion in cartesian space.
 
    **Tip** After cloning the repo, you can safely delete the folders _cartesian_controller_simulation_ and _cartesian_controller_tests_ for colcon build to complete successfully.
 
@@ -54,13 +54,13 @@ To ensure proper functionality, test the package using the Docker container prov
 
    ```bash
    cd ros2_ws/src
-   git clone https://github.com/cakh/llm-ur-control.git
+   git clone https://github.com/cakh/llm-tm-control.git
    cd ..
    rosdep install --from-paths src --ignore-src -r -y
    ```
 
 2. Update UR Controller:
-   llm-ur-control utilizes the cartesian_motion_controller which is not used by the ur_robot_driver as default controller. Hence the file _ur_robot_driver/config/ur_controllers.yaml_ has to be modified with this controller. For this purpose, add the following lines to the above mentioned file in the _ur_robot_driver_ package in your workspace:
+   llm-tm-control utilizes the cartesian_motion_controller which is not used by the ur_robot_driver as default controller. Hence the file _ur_robot_driver/config/ur_controllers.yaml_ has to be modified with this controller. For this purpose, add the following lines to the above mentioned file in the _ur_robot_driver_ package in your workspace:
     ```yaml
        cartesian_motion_controller:
          type: cartesian_motion_controller/CartesianMotionController
